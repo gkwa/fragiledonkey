@@ -17,6 +17,7 @@ type AMI struct {
 	Name         string    `json:"name"`
 	CreationDate time.Time `json:"creation_date"`
 	Snapshots    []string  `json:"snapshots"`
+	State        string    `json:"state"`
 }
 
 func QueryAMIs(client *ec2.Client) []AMI {
@@ -25,6 +26,10 @@ func QueryAMIs(client *ec2.Client) []AMI {
 			{
 				Name:   aws.String("name"),
 				Values: []string{"northflier-????-??-??"},
+			},
+			{
+				Name:   aws.String("state"),
+				Values: []string{"available"},
 			},
 		},
 		Owners: []string{"self"},
@@ -48,6 +53,7 @@ func QueryAMIs(client *ec2.Client) []AMI {
 			ID:           *image.ImageId,
 			Name:         *image.Name,
 			CreationDate: creationTime,
+			State:        string(image.State),
 		}
 
 		input := &ec2.DescribeSnapshotsInput{
@@ -55,6 +61,10 @@ func QueryAMIs(client *ec2.Client) []AMI {
 				{
 					Name:   aws.String("description"),
 					Values: []string{fmt.Sprintf("*%s*", *image.ImageId)},
+				},
+				{
+					Name:   aws.String("status"),
+					Values: []string{"completed"},
 				},
 			},
 			OwnerIds: []string{"self"},

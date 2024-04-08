@@ -50,6 +50,10 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool) {
 	var snapshotsToDelete []string
 
 	for _, ami := range amis {
+		if ami.State != "available" {
+			continue
+		}
+
 		if olderThan != "" && now.Sub(ami.CreationDate) > olderThanDuration {
 			imagesToDelete = append(imagesToDelete, ami.ID)
 			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
