@@ -14,7 +14,7 @@ import (
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
-func RunCleanup(olderThan string) {
+func RunCleanup(olderThan string, assumeYes bool) {
 	duration, err := parseDuration(olderThan)
 	if err != nil {
 		fmt.Println("Error parsing duration:", err)
@@ -70,13 +70,15 @@ func RunCleanup(olderThan string) {
 		fmt.Println("-", snapshotID)
 	}
 
-	fmt.Print("Do you want to proceed with the deletion? (y/n): ")
-	var confirm string
-	fmt.Scanln(&confirm)
+	if !assumeYes {
+		fmt.Print("Do you want to proceed with the deletion? (y/n): ")
+		var confirm string
+		fmt.Scanln(&confirm)
 
-	if confirm != "y" {
-		fmt.Println("Aborting deletion.")
-		return
+		if confirm != "y" {
+			fmt.Println("Aborting deletion.")
+			return
+		}
 	}
 
 	for _, imageID := range imagesToDelete {

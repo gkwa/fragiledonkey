@@ -7,14 +7,17 @@ import (
 	"github.com/taylormonacelli/fragiledonkey/cleanup"
 )
 
-var olderThan string
+var (
+	olderThan string
+	assumeYes bool
+)
 
 var cleanupCmd = &cobra.Command{
 	Use:   "cleanup",
 	Short: "Cleanup AMIs and snapshots older than specified relative date",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Cleaning up AMIs and snapshots...")
-		cleanup.RunCleanup(olderThan)
+		cleanup.RunCleanup(olderThan, assumeYes)
 	},
 }
 
@@ -25,4 +28,5 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	cleanupCmd.Flags().BoolVar(&assumeYes, "assume-yes", false, "Assume yes to prompts and run non-interactively")
 }
