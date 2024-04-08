@@ -2,9 +2,7 @@ package query
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"time"
 
@@ -21,17 +19,7 @@ type AMI struct {
 	Snapshots    []string  `json:"snapshots"`
 }
 
-func RunQuery() {
-	cfg, err := config.LoadDefaultConfig(context.Background())
-	if err != nil {
-		fmt.Println("Error loading config:", err)
-		return
-	}
-
-	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
-		o.Region = "us-west-2"
-	})
-
+func QueryAMIs(client *ec2.Client) []AMI {
 	input := &ec2.DescribeImagesInput{
 		Filters: []types.Filter{
 			{
@@ -45,7 +33,7 @@ func RunQuery() {
 	result, err := client.DescribeImages(context.Background(), input)
 	if err != nil {
 		fmt.Println("Error describing images:", err)
-		return
+		return nil
 	}
 
 	var amis []AMI
@@ -89,17 +77,21 @@ func RunQuery() {
 		return amis[i].CreationDate.After(amis[j].CreationDate)
 	})
 
-	jsonData, err := json.MarshalIndent(amis, "", "  ")
+	return amis
+}
+
+func RunQuery() {
+	cfg, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
-		fmt.Println("Error marshaling JSON:", err)
+		fmt.Println("Error loading config:", err)
 		return
 	}
 
-	err = os.WriteFile("northflier-amis.json", jsonData, 0o644)
-	if err != nil {
-		fmt.Println("Error writing JSON file:", err)
-		return
-	}
+	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
+		o.Region = "us-west-2"
+	})
+
+	amis := QueryAMIs(client)
 
 	now := time.Now()
 	for _, ami := range amis {

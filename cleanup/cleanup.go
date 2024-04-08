@@ -2,9 +2,7 @@ package cleanup
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -14,11 +12,25 @@ import (
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
-func RunCleanup(olderThan string, assumeYes bool) {
-	duration, err := parseDuration(olderThan)
-	if err != nil {
-		fmt.Println("Error parsing duration:", err)
-		return
+func RunCleanup(olderThan, newerThan string, assumeYes bool) {
+	var olderThanDuration time.Duration
+	var newerThanDuration time.Duration
+	var err error
+
+	if olderThan != "" {
+		olderThanDuration, err = parseDuration(olderThan)
+		if err != nil {
+			fmt.Println("Error parsing older-than duration:", err)
+			return
+		}
+	}
+
+	if newerThan != "" {
+		newerThanDuration, err = parseDuration(newerThan)
+		if err != nil {
+			fmt.Println("Error parsing newer-than duration:", err)
+			return
+		}
 	}
 
 	cfg, err := config.LoadDefaultConfig(context.Background())
@@ -31,25 +43,17 @@ func RunCleanup(olderThan string, assumeYes bool) {
 		o.Region = "us-west-2"
 	})
 
-	jsonData, err := os.ReadFile("northflier-amis.json")
-	if err != nil {
-		fmt.Println("Error reading JSON file:", err)
-		return
-	}
-
-	var amis []query.AMI
-	err = json.Unmarshal(jsonData, &amis)
-	if err != nil {
-		fmt.Println("Error unmarshaling JSON:", err)
-		return
-	}
+	amis := query.QueryAMIs(client)
 
 	now := time.Now()
 	var imagesToDelete []string
 	var snapshotsToDelete []string
 
 	for _, ami := range amis {
-		if now.Sub(ami.CreationDate) > duration {
+		if olderThan != "" && now.Sub(ami.CreationDate) > olderThanDuration {
+			imagesToDelete = append(imagesToDelete, ami.ID)
+			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
+		} else if newerThan != "" && now.Sub(ami.CreationDate) < newerThanDuration {
 			imagesToDelete = append(imagesToDelete, ami.ID)
 			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
 		}
