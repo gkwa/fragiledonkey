@@ -33,5 +33,5 @@ func init() {
 	rootCmd.AddCommand(cleanupCmd)
 	cleanupCmd.Flags().StringVar(&olderThan, "older-than", "", "Relative date for cleanup (e.g., 7d, 1M)")
 	cleanupCmd.Flags().StringVar(&newerThan, "newer-than", "", "Relative date for cleanup (e.g., 7d, 1M)")
-	cleanupCmd.Flags().BoolVar(&assumeYes, "assume-yes", false, "Assume yes to prompts and run non-interactively")
+	cleanupCmd.Flags().BoolVarP(&assumeYes, "assume-yes", "y", false, "Assume yes to prompts and run non-interactively")
 }

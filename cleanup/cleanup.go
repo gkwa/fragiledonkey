@@ -118,6 +118,9 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool) {
 	}
 
 	fmt.Println("Cleanup completed.")
+
+	fmt.Println("Remaining AMIs and snapshots:")
+	query.RunQuery()
 }
 
 func parseDuration(duration string) (time.Duration, error) {
