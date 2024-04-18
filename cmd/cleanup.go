@@ -11,6 +11,7 @@ var (
 	olderThan string
 	newerThan string
 	assumeYes bool
+	pattern   string
 )
 
 var cleanupCmd = &cobra.Command{
@@ -25,7 +26,7 @@ var cleanupCmd = &cobra.Command{
 			}
 			return
 		}
-		cleanup.RunCleanup(olderThan, newerThan, assumeYes)
+		cleanup.RunCleanup(olderThan, newerThan, assumeYes, pattern)
 	},
 }
 
@@ -34,4 +35,5 @@ func init() {
 	cleanupCmd.Flags().StringVar(&olderThan, "older-than", "", "Relative date for cleanup (e.g., 7d, 1M)")
 	cleanupCmd.Flags().StringVar(&newerThan, "newer-than", "", "Relative date for cleanup (e.g., 7d, 1M)")
 	cleanupCmd.Flags().BoolVarP(&assumeYes, "assume-yes", "y", false, "Assume yes to prompts and run non-interactively")
+	cleanupCmd.Flags().StringVar(&pattern, "pattern", "northflier-????-??-??", "Pattern for matching AMI names")
 }

@@ -5,6 +5,8 @@ import (
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
+var queryPattern string
+
 // queryCmd represents the query command
 var queryCmd = &cobra.Command{
 	Use:   "query",
@@ -16,7 +18,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		query.RunQuery()
+		query.RunQuery(queryPattern)
 	},
 }
 
@@ -31,5 +33,5 @@ func init() {
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// queryCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	queryCmd.Flags().StringVar(&queryPattern, "pattern", "northflier-????-??-??", "Pattern for matching AMI names")
 }

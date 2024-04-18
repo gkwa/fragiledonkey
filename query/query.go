@@ -20,12 +20,12 @@ type AMI struct {
 	State        string    `json:"state"`
 }
 
-func QueryAMIs(client *ec2.Client) []AMI {
+func QueryAMIs(client *ec2.Client, pattern string) []AMI {
 	input := &ec2.DescribeImagesInput{
 		Filters: []types.Filter{
 			{
 				Name:   aws.String("name"),
-				Values: []string{"northflier-????-??-??"},
+				Values: []string{pattern},
 			},
 			{
 				Name:   aws.String("state"),
@@ -90,7 +90,7 @@ func QueryAMIs(client *ec2.Client) []AMI {
 	return amis
 }
 
-func RunQuery() {
+func RunQuery(pattern string) {
 	cfg, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		fmt.Println("Error loading config:", err)
@@ -101,7 +101,7 @@ func RunQuery() {
 		o.Region = "us-west-2"
 	})
 
-	amis := QueryAMIs(client)
+	amis := QueryAMIs(client, pattern)
 
 	now := time.Now()
 	for _, ami := range amis {

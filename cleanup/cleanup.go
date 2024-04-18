@@ -12,7 +12,7 @@ import (
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
-func RunCleanup(olderThan, newerThan string, assumeYes bool) {
+func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 	var olderThanDuration time.Duration
 	var newerThanDuration time.Duration
 	var err error
@@ -43,7 +43,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool) {
 		o.Region = "us-west-2"
 	})
 
-	amis := query.QueryAMIs(client)
+	amis := query.QueryAMIs(client, pattern)
 
 	now := time.Now()
 	var imagesToDelete []string
@@ -120,7 +120,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool) {
 	fmt.Println("Cleanup completed.")
 
 	fmt.Println("Remaining AMIs and snapshots:")
-	query.RunQuery()
+	query.RunQuery(pattern)
 }
 
 func parseDuration(duration string) (time.Duration, error) {
