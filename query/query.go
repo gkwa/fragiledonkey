@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/spf13/viper"
 )
 
 type AMI struct {
@@ -97,8 +98,9 @@ func RunQuery(pattern string) {
 		return
 	}
 
+	region := viper.GetString("region")
 	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
-		o.Region = "us-west-2"
+		o.Region = region
 	})
 
 	amis := QueryAMIs(client, pattern)

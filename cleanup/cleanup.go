@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/spf13/viper"
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
@@ -39,8 +40,9 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 		return
 	}
 
+	region := viper.GetString("region")
 	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
-		o.Region = "us-west-2"
+		o.Region = region
 	})
 
 	amis := query.QueryAMIs(client, pattern)

@@ -17,6 +17,7 @@ var (
 	cfgFile   string
 	verbose   bool
 	logFormat string
+	region    string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -69,6 +70,13 @@ func init() {
 		os.Exit(1)
 	}
 
+	rootCmd.PersistentFlags().StringVar(&region, "region", "us-west-2", "AWS region")
+	err = viper.BindPFlag("region", rootCmd.PersistentFlags().Lookup("region"))
+	if err != nil {
+		slog.Error("error binding region flag", "error", err)
+		os.Exit(1)
+	}
+
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -104,10 +112,13 @@ func initConfig() {
 
 	logFormat = viper.GetString("log-format")
 	verbose = viper.GetBool("verbose")
+	region = viper.GetString("region")
 
 	slog.Debug("using config file", "path", viper.ConfigFileUsed())
 	slog.Debug("log-format", "value", logFormat)
 	slog.Debug("log-format", "value", viper.GetString("log-format"))
+	slog.Debug("region", "value", region)
+	slog.Debug("region", "value", viper.GetString("region"))
 
 	setupLogging()
 }
