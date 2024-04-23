@@ -3,13 +3,13 @@ package cleanup
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/spf13/viper"
+	"github.com/taylormonacelli/fragiledonkey/duration"
 	"github.com/taylormonacelli/fragiledonkey/query"
 )
 
@@ -19,7 +19,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 	var err error
 
 	if olderThan != "" {
-		olderThanDuration, err = parseDuration(olderThan)
+		olderThanDuration, err = duration.ParseDuration(olderThan)
 		if err != nil {
 			fmt.Println("Error parsing older-than duration:", err)
 			return
@@ -27,7 +27,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 	}
 
 	if newerThan != "" {
-		newerThanDuration, err = parseDuration(newerThan)
+		newerThanDuration, err = duration.ParseDuration(newerThan)
 		if err != nil {
 			fmt.Println("Error parsing newer-than duration:", err)
 			return
@@ -123,29 +123,4 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 
 	fmt.Println("Remaining AMIs and snapshots:")
 	query.RunQuery(pattern)
-}
-
-func parseDuration(duration string) (time.Duration, error) {
-	unitMap := map[string]time.Duration{
-		"s": time.Second,
-		"m": time.Minute,
-		"h": time.Hour,
-		"d": 24 * time.Hour,
-		"M": 30 * 24 * time.Hour,
-		"y": 365 * 24 * time.Hour,
-	}
-
-	value := duration[:len(duration)-1]
-	unit := duration[len(duration)-1:]
-
-	if _, ok := unitMap[unit]; !ok {
-		return 0, fmt.Errorf("invalid duration unit: %s", unit)
-	}
-
-	intValue, err := strconv.Atoi(value)
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration value: %s", value)
-	}
-
-	return time.Duration(intValue) * unitMap[unit], nil
 }

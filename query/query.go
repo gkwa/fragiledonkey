@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/dustin/go-humanize/english"
 	"github.com/spf13/viper"
+	"github.com/taylormonacelli/fragiledonkey/duration"
 	"github.com/taylormonacelli/lemondrop"
 	"golang.org/x/sync/errgroup"
 )
@@ -125,7 +126,7 @@ func RunQuery(pattern string) {
 
 	now := time.Now()
 	for _, ami := range amis {
-		age := relativeAge(now.Sub(ami.CreationDate))
+		age := duration.RelativeAge(now.Sub(ami.CreationDate))
 		fmt.Printf("%-5s %-20s %s\n", age, ami.ID, ami.Name)
 
 		for _, snapshotID := range ami.Snapshots {
@@ -142,7 +143,7 @@ func RunQuery(pattern string) {
 			if len(snapshotResult.Snapshots) > 0 {
 				snapshot := snapshotResult.Snapshots[0]
 				startTime := *snapshot.StartTime
-				age := relativeAge(now.Sub(startTime))
+				age := duration.RelativeAge(now.Sub(startTime))
 				fmt.Printf("    %-5s %-20s %s\n", age, *snapshot.SnapshotId, *snapshot.Description)
 			}
 		}
@@ -201,7 +202,7 @@ func RunQueryAllRegions(pattern string) {
 
 	now := time.Now()
 	for _, ami := range amis {
-		age := relativeAge(now.Sub(ami.CreationDate))
+		age := duration.RelativeAge(now.Sub(ami.CreationDate))
 		fmt.Printf("%-5s %-20s %-20s %s\n", age, ami.ID, ami.Name, ami.Region)
 
 		for _, snapshotID := range ami.Snapshots {
@@ -224,27 +225,9 @@ func RunQueryAllRegions(pattern string) {
 			if len(snapshotResult.Snapshots) > 0 {
 				snapshot := snapshotResult.Snapshots[0]
 				startTime := *snapshot.StartTime
-				age := relativeAge(now.Sub(startTime))
+				age := duration.RelativeAge(now.Sub(startTime))
 				fmt.Printf("    %-5s %-20s %s\n", age, *snapshot.SnapshotId, *snapshot.Description)
 			}
 		}
-	}
-}
-
-func relativeAge(duration time.Duration) string {
-	if duration < time.Minute {
-		return fmt.Sprintf("%ds", int(duration.Seconds()))
-	} else if duration < time.Hour {
-		return fmt.Sprintf("%dm", int(duration.Minutes()))
-	} else if duration < 24*time.Hour {
-		return fmt.Sprintf("%dh", int(duration.Hours()))
-	} else if duration < 7*24*time.Hour {
-		return fmt.Sprintf("%dd", int(duration.Hours()/24))
-	} else if duration < 30*24*time.Hour {
-		return fmt.Sprintf("%dw", int(duration.Hours()/(7*24)))
-	} else if duration < 365*24*time.Hour {
-		return fmt.Sprintf("%dM", int(duration.Hours()/(30*24)))
-	} else {
-		return fmt.Sprintf("%dy", int(duration.Hours()/(365*24)))
 	}
 }
