@@ -45,7 +45,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 		o.Region = region
 	})
 
-	amis := query.QueryAMIs(client, pattern)
+	amis := query.QueryAMIs(client, pattern, region)
 
 	now := time.Now()
 	var imagesToDelete []string

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -11,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/spf13/viper"
+	"github.com/taylormonacelli/lemondrop"
+	"golang.org/x/sync/errgroup"
 )
 
 type AMI struct {
@@ -19,9 +22,23 @@ type AMI struct {
 	CreationDate time.Time `json:"creation_date"`
 	Snapshots    []string  `json:"snapshots"`
 	State        string    `json:"state"`
+	Region       string    `json:"region"`
 }
 
-func QueryAMIs(client *ec2.Client, pattern string) []AMI {
+var ignoreStatusCodes = []int{
+	401, // don't show me errors when I don't have access to region
+}
+
+func isIgnoredError(err error) bool {
+	for _, code := range ignoreStatusCodes {
+		if strings.Contains(err.Error(), fmt.Sprintf("StatusCode: %d", code)) {
+			return true
+		}
+	}
+	return false
+}
+
+func QueryAMIs(client *ec2.Client, pattern string, region string) []AMI {
 	input := &ec2.DescribeImagesInput{
 		Filters: []types.Filter{
 			{
@@ -38,7 +55,9 @@ func QueryAMIs(client *ec2.Client, pattern string) []AMI {
 
 	result, err := client.DescribeImages(context.Background(), input)
 	if err != nil {
-		fmt.Println("Error describing images:", err)
+		if !isIgnoredError(err) {
+			fmt.Printf("Error describing images in region %s: %v\n", region, err)
+		}
 		return nil
 	}
 
@@ -55,6 +74,7 @@ func QueryAMIs(client *ec2.Client, pattern string) []AMI {
 			Name:         *image.Name,
 			CreationDate: creationTime,
 			State:        string(image.State),
+			Region:       region,
 		}
 
 		input := &ec2.DescribeSnapshotsInput{
@@ -92,18 +112,15 @@ func QueryAMIs(client *ec2.Client, pattern string) []AMI {
 }
 
 func RunQuery(pattern string) {
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(viper.GetString("region")))
 	if err != nil {
 		fmt.Println("Error loading config:", err)
 		return
 	}
 
-	region := viper.GetString("region")
-	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
-		o.Region = region
-	})
+	client := ec2.NewFromConfig(cfg)
 
-	amis := QueryAMIs(client, pattern)
+	amis := QueryAMIs(client, pattern, viper.GetString("region"))
 
 	now := time.Now()
 	for _, ami := range amis {
@@ -116,6 +133,95 @@ func RunQuery(pattern string) {
 			}
 
 			snapshotResult, err := client.DescribeSnapshots(context.Background(), input)
+			if err != nil {
+				fmt.Println("Error describing snapshot:", err)
+				continue
+			}
+
+			if len(snapshotResult.Snapshots) > 0 {
+				snapshot := snapshotResult.Snapshots[0]
+				startTime := *snapshot.StartTime
+				age := relativeAge(now.Sub(startTime))
+				fmt.Printf("    %-5s %-20s %s\n", age, *snapshot.SnapshotId, *snapshot.Description)
+			}
+		}
+	}
+}
+
+func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
+	regionDetails, err := lemondrop.GetRegionDetails()
+	if err != nil {
+		fmt.Println("Error getting region details:", err)
+		return nil, err
+	}
+
+	var g errgroup.Group
+	amiChan := make(chan []AMI)
+
+	for _, rd := range regionDetails {
+		rd := rd
+		g.Go(func() error {
+			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(rd.Region))
+			if err != nil {
+				fmt.Printf("Error loading config for region %s: %v\n", rd.Region, err)
+				return err
+			}
+
+			client := ec2.NewFromConfig(cfg)
+			amis := QueryAMIs(client, pattern, rd.Region)
+			amiChan <- amis
+			return nil
+		})
+	}
+
+	var allAMIs []AMI
+	go func() {
+		for amis := range amiChan {
+			allAMIs = append(allAMIs, amis...)
+		}
+	}()
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(amiChan)
+
+	fmt.Printf("Found %d AMI%s out of %d region%s queried\n", len(allAMIs), pluralize(len(allAMIs)), len(regionDetails), pluralize(len(regionDetails)))
+
+	return allAMIs, nil
+}
+
+func pluralize(count int) string {
+	if count >= 2 {
+		return "s"
+	}
+	return ""
+}
+
+func RunQueryAllRegions(pattern string) {
+	amis, err := QueryAMIsAllRegions(pattern)
+	if err != nil {
+		fmt.Println("Error querying AMIs across regions:", err)
+		return
+	}
+
+	now := time.Now()
+	for _, ami := range amis {
+		age := relativeAge(now.Sub(ami.CreationDate))
+		fmt.Printf("%-5s %-20s %-20s %s\n", age, ami.ID, ami.Name, ami.Region)
+
+		for _, snapshotID := range ami.Snapshots {
+			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(ami.Region))
+			if err != nil {
+				fmt.Printf("Error loading config for region %s: %v\n", ami.Region, err)
+				continue
+			}
+
+			input := &ec2.DescribeSnapshotsInput{
+				SnapshotIds: []string{snapshotID},
+			}
+
+			snapshotResult, err := ec2.NewFromConfig(cfg).DescribeSnapshots(context.Background(), input)
 			if err != nil {
 				fmt.Println("Error describing snapshot:", err)
 				continue
