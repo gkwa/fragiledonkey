@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/dustin/go-humanize/english"
 	"github.com/spf13/viper"
 	"github.com/taylormonacelli/lemondrop"
 	"golang.org/x/sync/errgroup"
@@ -186,16 +187,9 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 	}
 	close(amiChan)
 
-	fmt.Printf("Found %d AMI%s out of %d region%s queried\n", len(allAMIs), pluralize(len(allAMIs)), len(regionDetails), pluralize(len(regionDetails)))
+	fmt.Printf("Found %d %s from %d %s queried\n", len(allAMIs), english.PluralWord(len(allAMIs), "AMI", ""), len(regionDetails), english.PluralWord(len(regionDetails), "region", ""))
 
 	return allAMIs, nil
-}
-
-func pluralize(count int) string {
-	if count >= 2 {
-		return "s"
-	}
-	return ""
 }
 
 func RunQueryAllRegions(pattern string) {
