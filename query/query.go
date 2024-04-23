@@ -238,8 +238,10 @@ func relativeAge(duration time.Duration) string {
 		return fmt.Sprintf("%dm", int(duration.Minutes()))
 	} else if duration < 24*time.Hour {
 		return fmt.Sprintf("%dh", int(duration.Hours()))
-	} else if duration < 30*24*time.Hour {
+	} else if duration < 7*24*time.Hour {
 		return fmt.Sprintf("%dd", int(duration.Hours()/24))
+	} else if duration < 30*24*time.Hour {
+		return fmt.Sprintf("%dw", int(duration.Hours()/(7*24)))
 	} else if duration < 365*24*time.Hour {
 		return fmt.Sprintf("%dM", int(duration.Hours()/(30*24)))
 	} else {
