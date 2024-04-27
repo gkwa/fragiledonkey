@@ -8,9 +8,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
-	"github.com/spf13/viper"
 	"github.com/taylormonacelli/fragiledonkey/duration"
 	"github.com/taylormonacelli/fragiledonkey/query"
+	"github.com/taylormonacelli/lemondrop"
+	"golang.org/x/sync/errgroup"
 )
 
 func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
@@ -34,17 +35,34 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 		}
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	regionDetails, err := lemondrop.GetRegionDetails()
 	if err != nil {
-		fmt.Println("Error loading config:", err)
+		fmt.Println("Error getting region details:", err)
 		return
 	}
 
-	region := viper.GetString("region")
-	client := ec2.NewFromConfig(cfg, func(o *ec2.Options) {
-		o.Region = region
-	})
+	var g errgroup.Group
+	for _, rd := range regionDetails {
+		rd := rd
+		g.Go(func() error {
+			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(rd.Region))
+			if err != nil {
+				fmt.Printf("Error loading config for region %s: %v\n", rd.Region, err)
+				return err
+			}
 
+			client := ec2.NewFromConfig(cfg)
+			cleanupRegion(client, olderThanDuration, newerThanDuration, assumeYes, pattern, rd.Region)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		fmt.Println("Error during cleanup:", err)
+	}
+}
+
+func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time.Duration, assumeYes bool, pattern string, region string) {
 	amis := query.QueryAMIs(client, pattern, region)
 
 	now := time.Now()
@@ -56,26 +74,26 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 			continue
 		}
 
-		if olderThan != "" && now.Sub(ami.CreationDate) > olderThanDuration {
+		if olderThanDuration != 0 && now.Sub(ami.CreationDate) > olderThanDuration {
 			imagesToDelete = append(imagesToDelete, ami.ID)
 			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
-		} else if newerThan != "" && now.Sub(ami.CreationDate) < newerThanDuration {
+		} else if newerThanDuration != 0 && now.Sub(ami.CreationDate) < newerThanDuration {
 			imagesToDelete = append(imagesToDelete, ami.ID)
 			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
 		}
 	}
 
 	if len(imagesToDelete) == 0 && len(snapshotsToDelete) == 0 {
-		fmt.Println("No AMIs or snapshots to delete.")
+		fmt.Printf("No AMIs or snapshots to delete in region %s.\n", region)
 		return
 	}
 
-	fmt.Println("AMIs to be deleted:")
+	fmt.Printf("AMIs to be deleted in region %s:\n", region)
 	for _, imageID := range imagesToDelete {
 		fmt.Println("-", imageID)
 	}
 
-	fmt.Println("Snapshots to be deleted:")
+	fmt.Printf("Snapshots to be deleted in region %s:\n", region)
 	for _, snapshotID := range snapshotsToDelete {
 		fmt.Println("-", snapshotID)
 	}
@@ -119,8 +137,5 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 		fmt.Printf("Deleted snapshot: %s\n", snapshotID)
 	}
 
-	fmt.Println("Cleanup completed.")
-
-	fmt.Println("Remaining AMIs and snapshots:")
-	query.RunQuery(pattern)
+	fmt.Printf("Cleanup completed in region %s.\n", region)
 }
