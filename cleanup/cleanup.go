@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/spf13/viper"
 	"github.com/taylormonacelli/fragiledonkey/duration"
 	"github.com/taylormonacelli/fragiledonkey/query"
 	"github.com/taylormonacelli/lemondrop"
@@ -84,7 +85,9 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 	}
 
 	if len(imagesToDelete) == 0 && len(snapshotsToDelete) == 0 {
-		fmt.Printf("No AMIs or snapshots to delete in region %s.\n", region)
+		if viper.GetBool("verbose") {
+			fmt.Printf("No AMIs or snapshots to delete in region %s.\n", region)
+		}
 		return
 	}
 
