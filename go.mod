@@ -10,7 +10,7 @@ require (
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	github.com/taylormonacelli/goldbug v0.0.6
-	github.com/taylormonacelli/lemondrop v0.0.17
+	github.com/taylormonacelli/lemondrop v0.0.18
 	golang.org/x/sync v0.7.0
 )
 

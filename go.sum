@@ -103,6 +103,8 @@ github.com/taylormonacelli/goldbug v0.0.6 h1:2NQnMjAfznHkKh8dKPTUHJqnswgqWrcF/Nh
 github.com/taylormonacelli/goldbug v0.0.6/go.mod h1:RmeCuiI1RYYPob+BPHEZcmp+IVd6EkoHsoRukenJmH0=
 github.com/taylormonacelli/lemondrop v0.0.17 h1:nYTHkpjyn1kwCl/GWpxB+sMW/7pvfMTL1DeywqcQuRA=
 github.com/taylormonacelli/lemondrop v0.0.17/go.mod h1:bWJkmgt8eYEZekjd+Br7gjZ3y8KJQswkhhxphgOEZxk=
+github.com/taylormonacelli/lemondrop v0.0.18 h1:9wejPe7neRyneDRc+N6gfV9fjjD/GSx4N9EUH2guYvU=
+github.com/taylormonacelli/lemondrop v0.0.18/go.mod h1:bWJkmgt8eYEZekjd+Br7gjZ3y8KJQswkhhxphgOEZxk=
 github.com/taylormonacelli/somespider v0.0.0-20240127160314-1cf65a8b592b h1:b9rJpLFYnj+3983WWZMNpPnpui+HEeQIwl4/QQnNf28=
 github.com/taylormonacelli/somespider v0.0.0-20240127160314-1cf65a8b592b/go.mod h1:lZSB/IUt7gzn5KIdfO+xRyLX3JhfvRn/vxTMWMSkcOM=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
