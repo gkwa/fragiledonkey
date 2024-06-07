@@ -14,6 +14,7 @@ func TestParseDuration(t *testing.T) {
 		wantErr   bool
 	}{
 		{name: "seconds", input: "30s", expected: 30 * time.Second, tolerance: 0, wantErr: false},
+		{name: "seconds", input: "-30s", expected: -30 * time.Second, tolerance: 0, wantErr: false},
 		{name: "minutes", input: "15m", expected: 15 * time.Minute, tolerance: 0, wantErr: false},
 		{name: "hours", input: "2h", expected: 2 * time.Hour, tolerance: 0, wantErr: false},
 		{name: "days", input: "7d", expected: 7 * 24 * time.Hour, tolerance: 0, wantErr: false},
@@ -21,6 +22,7 @@ func TestParseDuration(t *testing.T) {
 		{name: "months", input: "1M", expected: 30 * 24 * time.Hour, tolerance: 0, wantErr: false},
 		{name: "years", input: "1y", expected: 365 * 24 * time.Hour, tolerance: 0, wantErr: false},
 		{name: "decimal hours", input: "2.3h", expected: 2*time.Hour + 18*time.Minute, tolerance: time.Second, wantErr: false},
+		{name: "decimal hours", input: "-2.3h", expected: -(2*time.Hour + 18*time.Minute), tolerance: time.Second, wantErr: false},
 		{name: "invalid unit", input: "10x", wantErr: true},
 		{name: "invalid value", input: "abc10s", wantErr: true},
 	}
