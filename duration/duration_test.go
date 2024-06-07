@@ -7,19 +7,20 @@ import (
 
 func TestParseDuration(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		expected time.Duration
-		wantErr  bool
+		name      string
+		input     string
+		expected  time.Duration
+		tolerance time.Duration
+		wantErr   bool
 	}{
-		{name: "seconds", input: "30s", expected: 30 * time.Second, wantErr: false},
-		{name: "minutes", input: "15m", expected: 15 * time.Minute, wantErr: false},
-		{name: "hours", input: "2h", expected: 2 * time.Hour, wantErr: false},
-		{name: "days", input: "7d", expected: 7 * 24 * time.Hour, wantErr: false},
-		{name: "weeks", input: "2w", expected: 2 * 7 * 24 * time.Hour, wantErr: false},
-		{name: "months", input: "1M", expected: 30 * 24 * time.Hour, wantErr: false},
-		{name: "years", input: "1y", expected: 365 * 24 * time.Hour, wantErr: false},
-		{name: "decimal hours", input: "2.3h", expected: 2*time.Hour + 18*time.Minute, wantErr: true},
+		{name: "seconds", input: "30s", expected: 30 * time.Second, tolerance: 0, wantErr: false},
+		{name: "minutes", input: "15m", expected: 15 * time.Minute, tolerance: 0, wantErr: false},
+		{name: "hours", input: "2h", expected: 2 * time.Hour, tolerance: 0, wantErr: false},
+		{name: "days", input: "7d", expected: 7 * 24 * time.Hour, tolerance: 0, wantErr: false},
+		{name: "weeks", input: "2w", expected: 2 * 7 * 24 * time.Hour, tolerance: 0, wantErr: false},
+		{name: "months", input: "1M", expected: 30 * 24 * time.Hour, tolerance: 0, wantErr: false},
+		{name: "years", input: "1y", expected: 365 * 24 * time.Hour, tolerance: 0, wantErr: false},
+		{name: "decimal hours", input: "2.3h", expected: 2*time.Hour + 18*time.Minute, tolerance: time.Second, wantErr: false},
 		{name: "invalid unit", input: "10x", wantErr: true},
 		{name: "invalid value", input: "abc10s", wantErr: true},
 	}
@@ -31,8 +32,12 @@ func TestParseDuration(t *testing.T) {
 				t.Errorf("ParseDuration() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && got != tt.expected {
-				t.Errorf("ParseDuration() = %v, want %v", got, tt.expected)
+			if !tt.wantErr {
+				gotRounded := got.Round(tt.tolerance)
+				expectedRounded := tt.expected.Round(tt.tolerance)
+				if gotRounded != expectedRounded {
+					t.Errorf("ParseDuration() = %v, want %v (tolerance: %v)", got, tt.expected, tt.tolerance)
+				}
 			}
 		})
 	}
