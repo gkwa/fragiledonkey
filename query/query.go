@@ -12,8 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/dustin/go-humanize/english"
+	"github.com/gkwa/fragiledonkey/duration"
 	"github.com/spf13/viper"
-	"github.com/taylormonacelli/fragiledonkey/duration"
 	"github.com/taylormonacelli/lemondrop"
 	"golang.org/x/sync/errgroup"
 )

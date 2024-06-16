@@ -10,9 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/gkwa/fragiledonkey/duration"
+	"github.com/gkwa/fragiledonkey/query"
 	"github.com/spf13/viper"
-	"github.com/taylormonacelli/fragiledonkey/duration"
-	"github.com/taylormonacelli/fragiledonkey/query"
 	"github.com/taylormonacelli/lemondrop"
 	"golang.org/x/sync/errgroup"
 )

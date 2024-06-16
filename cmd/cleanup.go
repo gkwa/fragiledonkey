@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/gkwa/fragiledonkey/cleanup"
 	"github.com/spf13/cobra"
-	"github.com/taylormonacelli/fragiledonkey/cleanup"
 )
 
 var (
