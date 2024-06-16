@@ -3,6 +3,7 @@ package cleanup
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,7 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
+func RunCleanup(olderThan, newerThan string, assumeYes bool, leaveCount int, pattern string) {
 	var olderThanDuration time.Duration
 	var newerThanDuration time.Duration
 	var err error
@@ -53,7 +54,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 			}
 
 			client := ec2.NewFromConfig(cfg)
-			cleanupRegion(client, olderThanDuration, newerThanDuration, assumeYes, pattern, rd.Region)
+			cleanupRegion(client, olderThanDuration, newerThanDuration, assumeYes, leaveCount, pattern, rd.Region)
 			return nil
 		})
 	}
@@ -63,24 +64,39 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, pattern string) {
 	}
 }
 
-func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time.Duration, assumeYes bool, pattern string, region string) {
+func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time.Duration, assumeYes bool, leaveCount int, pattern string, region string) {
 	amis := query.QueryAMIs(client, pattern, region)
 
 	now := time.Now()
-	var imagesToDelete []string
+	var imagesToDelete []query.AMI
 	var snapshotsToDelete []string
 
-	for _, ami := range amis {
-		if ami.State != "available" {
-			continue
+	if leaveCount > 0 {
+		if len(amis) <= leaveCount {
+			if viper.GetBool("verbose") {
+				fmt.Printf("No AMIs to delete in region %s.\n", region)
+			}
+			return
 		}
 
-		if olderThanDuration != 0 && now.Sub(ami.CreationDate) > olderThanDuration {
-			imagesToDelete = append(imagesToDelete, ami.ID)
-			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
-		} else if newerThanDuration != 0 && now.Sub(ami.CreationDate) < newerThanDuration {
-			imagesToDelete = append(imagesToDelete, ami.ID)
-			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
+		sort.Slice(amis, func(i, j int) bool {
+			return amis[i].CreationDate.After(amis[j].CreationDate)
+		})
+
+		imagesToDelete = amis[leaveCount:]
+	} else {
+		for _, ami := range amis {
+			if ami.State != "available" {
+				continue
+			}
+
+			if olderThanDuration != 0 && now.Sub(ami.CreationDate) > olderThanDuration {
+				imagesToDelete = append(imagesToDelete, ami)
+				snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
+			} else if newerThanDuration != 0 && now.Sub(ami.CreationDate) < newerThanDuration {
+				imagesToDelete = append(imagesToDelete, ami)
+				snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
+			}
 		}
 	}
 
@@ -92,8 +108,8 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 	}
 
 	fmt.Printf("AMIs to be deleted in region %s:\n", region)
-	for _, imageID := range imagesToDelete {
-		fmt.Println("-", imageID)
+	for _, ami := range imagesToDelete {
+		fmt.Println("-", ami.ID)
 	}
 
 	fmt.Printf("Snapshots to be deleted in region %s:\n", region)
@@ -112,18 +128,18 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 		}
 	}
 
-	for _, imageID := range imagesToDelete {
+	for _, ami := range imagesToDelete {
 		input := &ec2.DeregisterImageInput{
-			ImageId: aws.String(imageID),
+			ImageId: aws.String(ami.ID),
 		}
 
 		_, err := client.DeregisterImage(context.Background(), input)
 		if err != nil {
-			fmt.Printf("Error deregistering AMI %s: %v\n", imageID, err)
+			fmt.Printf("Error deregistering AMI %s: %v\n", ami.ID, err)
 			continue
 		}
 
-		fmt.Printf("Deregistered AMI: %s\n", imageID)
+		fmt.Printf("Deregistered AMI: %s\n", ami.ID)
 	}
 
 	for _, snapshotID := range snapshotsToDelete {
