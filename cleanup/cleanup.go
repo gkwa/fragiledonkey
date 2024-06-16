@@ -3,6 +3,7 @@ package cleanup
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -120,7 +121,10 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 	if !assumeYes {
 		fmt.Print("Do you want to proceed with the deletion? (y/n): ")
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, err := fmt.Scanln(&confirm)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error confirming to delete: %v", err)
+		}
 
 		if confirm != "y" {
 			fmt.Println("Aborting deletion.")
