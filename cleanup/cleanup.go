@@ -85,6 +85,9 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 		})
 
 		imagesToDelete = amis[leaveCount:]
+		for _, ami := range imagesToDelete {
+			snapshotsToDelete = append(snapshotsToDelete, ami.Snapshots...)
+		}
 	} else {
 		for _, ami := range amis {
 			if ami.State != "available" {
