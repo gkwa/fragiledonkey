@@ -37,6 +37,7 @@ func isIgnoredError(err error) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -60,10 +61,12 @@ func QueryAMIs(client *ec2.Client, pattern string, region string) []AMI {
 		if !isIgnoredError(err) {
 			fmt.Printf("Error describing images in region %s: %v\n", region, err)
 		}
+
 		return nil
 	}
 
 	var amis []AMI
+
 	for _, image := range result.Images {
 		creationTime, err := time.Parse(time.RFC3339, *image.CreationDate)
 		if err != nil {
@@ -158,10 +161,12 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 	}
 
 	var g errgroup.Group
+
 	amiChan := make(chan []AMI)
 
 	for _, rd := range regionDetails {
 		rd := rd
+
 		g.Go(func() error {
 			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(rd.Region))
 			if err != nil {
@@ -172,11 +177,13 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 			client := ec2.NewFromConfig(cfg)
 			amis := QueryAMIs(client, pattern, rd.Region)
 			amiChan <- amis
+
 			return nil
 		})
 	}
 
 	var allAMIs []AMI
+
 	go func() {
 		for amis := range amiChan {
 			allAMIs = append(allAMIs, amis...)
@@ -186,6 +193,7 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
+
 	close(amiChan)
 
 	fmt.Printf("Found %d %s from %d %s queried\n", len(allAMIs), english.PluralWord(len(allAMIs), "AMI", ""), len(regionDetails), english.PluralWord(len(regionDetails), "region", ""))

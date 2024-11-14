@@ -34,9 +34,11 @@ func TestParseDuration(t *testing.T) {
 				t.Errorf("ParseDuration() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !tt.wantErr {
 				gotRounded := got.Round(tt.tolerance)
 				expectedRounded := tt.expected.Round(tt.tolerance)
+
 				if gotRounded != expectedRounded {
 					t.Errorf("ParseDuration() = %v, want %v (tolerance: %v)", got, tt.expected, tt.tolerance)
 				}

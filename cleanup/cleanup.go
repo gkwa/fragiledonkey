@@ -19,7 +19,9 @@ import (
 
 func RunCleanup(olderThan, newerThan string, assumeYes bool, leaveCount int, pattern string) {
 	var olderThanDuration time.Duration
+
 	var newerThanDuration time.Duration
+
 	var err error
 
 	if olderThan != "" {
@@ -45,8 +47,10 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, leaveCount int, pat
 	}
 
 	var g errgroup.Group
+
 	for _, rd := range regionDetails {
 		rd := rd
+
 		g.Go(func() error {
 			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(rd.Region))
 			if err != nil {
@@ -56,6 +60,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, leaveCount int, pat
 
 			client := ec2.NewFromConfig(cfg)
 			cleanupRegion(client, olderThanDuration, newerThanDuration, assumeYes, leaveCount, pattern, rd.Region)
+
 			return nil
 		})
 	}
@@ -69,7 +74,9 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 	amis := query.QueryAMIs(client, pattern, region)
 
 	now := time.Now()
+
 	var imagesToDelete []query.AMI
+
 	var snapshotsToDelete []string
 
 	if leaveCount > 0 {
@@ -77,6 +84,7 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 			if viper.GetBool("verbose") {
 				fmt.Printf("No AMIs to delete in region %s.\n", region)
 			}
+
 			return
 		}
 
@@ -108,22 +116,27 @@ func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time
 		if viper.GetBool("verbose") {
 			fmt.Printf("No AMIs or snapshots to delete in region %s.\n", region)
 		}
+
 		return
 	}
 
 	fmt.Printf("AMIs to be deleted in region %s:\n", region)
+
 	for _, ami := range imagesToDelete {
 		fmt.Println("-", ami.ID)
 	}
 
 	fmt.Printf("Snapshots to be deleted in region %s:\n", region)
+
 	for _, snapshotID := range snapshotsToDelete {
 		fmt.Println("-", snapshotID)
 	}
 
 	if !assumeYes {
 		fmt.Print("Do you want to proceed with the deletion? (y/n): ")
+
 		var confirm string
+
 		_, err := fmt.Scanln(&confirm)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error confirming to delete: %v", err)

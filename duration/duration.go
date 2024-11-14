@@ -16,22 +16,29 @@ func ParseDuration(duration string) (time.Duration, error) {
 		"M": 30 * 24 * time.Hour,
 		"y": 365 * 24 * time.Hour,
 	}
+
 	var value string
+
 	var unit string
+
 	for i := len(duration) - 1; i >= 0; i-- {
 		if _, ok := unitMap[duration[i:]]; ok {
 			value = duration[:i]
 			unit = duration[i:]
+
 			break
 		}
 	}
+
 	if unit == "" {
 		return 0, fmt.Errorf("invalid duration format: %s", duration)
 	}
+
 	v, err := strconv.ParseFloat(value, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid duration value: %s", value)
 	}
+
 	return time.Duration(v * float64(unitMap[unit])), nil
 }
 

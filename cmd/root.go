@@ -57,6 +57,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.fragiledonkey.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose mode")
+
 	err = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	if err != nil {
 		slog.Error("error binding verbose flag", "error", err)
@@ -64,6 +65,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "", "json or text (default is text)")
+
 	err = viper.BindPFlag("log-format", rootCmd.PersistentFlags().Lookup("log-format"))
 	if err != nil {
 		slog.Error("error binding log-format flag", "error", err)
@@ -71,6 +73,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&region, "region", "us-west-2", "AWS region")
+
 	err = viper.BindPFlag("region", rootCmd.PersistentFlags().Lookup("region"))
 	if err != nil {
 		slog.Error("error binding region flag", "error", err)
@@ -80,6 +83,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+
 	err = viper.BindPFlag("toggle", rootCmd.Flags().Lookup("toggle"))
 	if err != nil {
 		slog.Error("error binding toggle flag", "error", err)
