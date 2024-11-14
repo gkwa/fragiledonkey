@@ -4,7 +4,6 @@ Purpose:
 
 One-off to delete AWS test AMIs matching pattern and their snapshots.
 
-
 ## Usage example
 
 ```bash
