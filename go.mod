@@ -3,7 +3,7 @@ module github.com/gkwa/fragiledonkey
 go 1.22.4
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.32.5
+	github.com/aws/aws-sdk-go-v2 v1.32.6
 	github.com/aws/aws-sdk-go-v2/config v1.28.5
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.194.0
 	github.com/dustin/go-humanize v1.0.1
