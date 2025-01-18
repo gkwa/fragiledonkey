@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -13,9 +14,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/dustin/go-humanize/english"
 	"github.com/gkwa/fragiledonkey/duration"
-	"github.com/spf13/viper"
 	"github.com/taylormonacelli/lemondrop"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 )
 
 type AMI struct {
@@ -27,6 +28,14 @@ type AMI struct {
 	Region       string    `json:"region"`
 }
 
+type SnapshotInfo struct {
+	ID          string
+	Age         string
+	Description string
+}
+
+const maxConcurrentRequests = 10
+
 var ignoreStatusCodes = []int{
 	401, // don't show me errors when I don't have access to region
 }
@@ -37,7 +46,6 @@ func isIgnoredError(err error) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -61,7 +69,6 @@ func QueryAMIs(client *ec2.Client, pattern string, region string) []AMI {
 		if !isIgnoredError(err) {
 			fmt.Printf("Error describing images in region %s: %v\n", region, err)
 		}
-
 		return nil
 	}
 
@@ -116,43 +123,6 @@ func QueryAMIs(client *ec2.Client, pattern string, region string) []AMI {
 	return amis
 }
 
-func RunQuery(pattern string) {
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(viper.GetString("region")))
-	if err != nil {
-		fmt.Println("Error loading config:", err)
-		return
-	}
-
-	client := ec2.NewFromConfig(cfg)
-
-	amis := QueryAMIs(client, pattern, viper.GetString("region"))
-
-	now := time.Now()
-	for _, ami := range amis {
-		age := duration.RelativeAge(now.Sub(ami.CreationDate))
-		fmt.Printf("%-5s %-20s %s\n", age, ami.ID, ami.Name)
-
-		for _, snapshotID := range ami.Snapshots {
-			input := &ec2.DescribeSnapshotsInput{
-				SnapshotIds: []string{snapshotID},
-			}
-
-			snapshotResult, err := client.DescribeSnapshots(context.Background(), input)
-			if err != nil {
-				fmt.Println("Error describing snapshot:", err)
-				continue
-			}
-
-			if len(snapshotResult.Snapshots) > 0 {
-				snapshot := snapshotResult.Snapshots[0]
-				startTime := *snapshot.StartTime
-				age := duration.RelativeAge(now.Sub(startTime))
-				fmt.Printf("    %-5s %-20s %s\n", age, *snapshot.SnapshotId, *snapshot.Description)
-			}
-		}
-	}
-}
-
 func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 	regionDetails, err := lemondrop.GetRegionDetails()
 	if err != nil {
@@ -160,15 +130,23 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 		return nil, err
 	}
 
+	ctx := context.Background()
+	sem := semaphore.NewWeighted(maxConcurrentRequests)
 	var g errgroup.Group
-
-	amiChan := make(chan []AMI)
+	var mu sync.Mutex
+	var allAMIs []AMI
 
 	for _, rd := range regionDetails {
 		rd := rd
+		err := sem.Acquire(ctx, 1)
+		if err != nil {
+			continue
+		}
 
 		g.Go(func() error {
-			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(rd.Region))
+			defer sem.Release(1)
+
+			cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(rd.Region))
 			if err != nil {
 				fmt.Printf("Error loading config for region %s: %v\n", rd.Region, err)
 				return err
@@ -176,29 +154,81 @@ func QueryAMIsAllRegions(pattern string) ([]AMI, error) {
 
 			client := ec2.NewFromConfig(cfg)
 			amis := QueryAMIs(client, pattern, rd.Region)
-			amiChan <- amis
+
+			mu.Lock()
+			allAMIs = append(allAMIs, amis...)
+			mu.Unlock()
 
 			return nil
 		})
 	}
 
-	var allAMIs []AMI
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
 
-	go func() {
-		for amis := range amiChan {
-			allAMIs = append(allAMIs, amis...)
+	fmt.Printf("Found %d %s from %d %s queried\n",
+		len(allAMIs),
+		english.PluralWord(len(allAMIs), "AMI", ""),
+		len(regionDetails),
+		english.PluralWord(len(regionDetails), "region", ""))
+
+	return allAMIs, nil
+}
+
+func querySnapshotsForAMI(ami AMI, now time.Time) ([]SnapshotInfo, error) {
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(ami.Region))
+	if err != nil {
+		return nil, fmt.Errorf("error loading config for region %s: %v", ami.Region, err)
+	}
+
+	ctx := context.Background()
+	sem := semaphore.NewWeighted(maxConcurrentRequests)
+	var g errgroup.Group
+	var snapshots []SnapshotInfo
+	var mu sync.Mutex
+
+	for _, snapshotID := range ami.Snapshots {
+		snapshotID := snapshotID
+		err := sem.Acquire(ctx, 1)
+		if err != nil {
+			continue
 		}
-	}()
+
+		g.Go(func() error {
+			defer sem.Release(1)
+
+			input := &ec2.DescribeSnapshotsInput{
+				SnapshotIds: []string{snapshotID},
+			}
+
+			snapshotResult, err := ec2.NewFromConfig(cfg).DescribeSnapshots(ctx, input)
+			if err != nil {
+				return fmt.Errorf("error describing snapshot %s: %v", snapshotID, err)
+			}
+
+			if len(snapshotResult.Snapshots) > 0 {
+				snapshot := snapshotResult.Snapshots[0]
+				startTime := *snapshot.StartTime
+				age := duration.RelativeAge(now.Sub(startTime))
+
+				mu.Lock()
+				snapshots = append(snapshots, SnapshotInfo{
+					ID:          snapshotID,
+					Age:         age,
+					Description: *snapshot.Description,
+				})
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
 
-	close(amiChan)
-
-	fmt.Printf("Found %d %s from %d %s queried\n", len(allAMIs), english.PluralWord(len(allAMIs), "AMI", ""), len(regionDetails), english.PluralWord(len(regionDetails), "region", ""))
-
-	return allAMIs, nil
+	return snapshots, nil
 }
 
 func RunQueryAllRegions(pattern string) {
@@ -209,33 +239,49 @@ func RunQueryAllRegions(pattern string) {
 	}
 
 	now := time.Now()
-	for _, ami := range amis {
-		age := duration.RelativeAge(now.Sub(ami.CreationDate))
-		fmt.Printf("%-5s %-20s %-20s %s\n", age, ami.ID, ami.Name, ami.Region)
 
-		for _, snapshotID := range ami.Snapshots {
-			cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(ami.Region))
+	ctx := context.Background()
+	sem := semaphore.NewWeighted(maxConcurrentRequests)
+	var g errgroup.Group
+
+	type amiWithSnapshots struct {
+		ami       AMI
+		snapshots []SnapshotInfo
+	}
+
+	results := make([]amiWithSnapshots, len(amis))
+
+	for i, ami := range amis {
+		i, ami := i, ami
+		err := sem.Acquire(ctx, 1)
+		if err != nil {
+			continue
+		}
+
+		g.Go(func() error {
+			defer sem.Release(1)
+
+			snapshots, err := querySnapshotsForAMI(ami, now)
 			if err != nil {
-				fmt.Printf("Error loading config for region %s: %v\n", ami.Region, err)
-				continue
+				return err
 			}
 
-			input := &ec2.DescribeSnapshotsInput{
-				SnapshotIds: []string{snapshotID},
-			}
+			results[i] = amiWithSnapshots{ami: ami, snapshots: snapshots}
+			return nil
+		})
+	}
 
-			snapshotResult, err := ec2.NewFromConfig(cfg).DescribeSnapshots(context.Background(), input)
-			if err != nil {
-				fmt.Println("Error describing snapshot:", err)
-				continue
-			}
+	if err := g.Wait(); err != nil {
+		fmt.Println("Error querying snapshots:", err)
+		return
+	}
 
-			if len(snapshotResult.Snapshots) > 0 {
-				snapshot := snapshotResult.Snapshots[0]
-				startTime := *snapshot.StartTime
-				age := duration.RelativeAge(now.Sub(startTime))
-				fmt.Printf("    %-5s %-20s %s\n", age, *snapshot.SnapshotId, *snapshot.Description)
-			}
+	for _, result := range results {
+		age := duration.RelativeAge(now.Sub(result.ami.CreationDate))
+		fmt.Printf("%-5s %-20s %-20s %s\n", age, result.ami.ID, result.ami.Name, result.ami.Region)
+
+		for _, snapshot := range result.snapshots {
+			fmt.Printf("    %-5s %-20s %s\n", snapshot.Age, snapshot.ID, snapshot.Description)
 		}
 	}
 }
