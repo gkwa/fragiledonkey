@@ -49,7 +49,7 @@ func isIgnoredError(err error) bool {
 	return false
 }
 
-func QueryAMIs(client *ec2.Client, pattern string, region string) []AMI {
+func QueryAMIs(client *ec2.Client, pattern, region string) []AMI {
 	input := &ec2.DescribeImagesInput{
 		Filters: []types.Filter{
 			{

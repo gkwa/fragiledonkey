@@ -70,7 +70,7 @@ func RunCleanup(olderThan, newerThan string, assumeYes bool, leaveCount int, pat
 	}
 }
 
-func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time.Duration, assumeYes bool, leaveCount int, pattern string, region string) {
+func cleanupRegion(client *ec2.Client, olderThanDuration, newerThanDuration time.Duration, assumeYes bool, leaveCount int, pattern, region string) {
 	amis := query.QueryAMIs(client, pattern, region)
 
 	now := time.Now()
