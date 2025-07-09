@@ -13,7 +13,7 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/taylormonacelli/goldbug v0.0.6
 	github.com/taylormonacelli/lemondrop v0.0.20
-	golang.org/x/sync v0.15.0
+	golang.org/x/sync v0.16.0
 )
 
 require (
