@@ -2,7 +2,7 @@ module github.com/gkwa/fragiledonkey
 
 go 1.24.0
 
-toolchain go1.25.1
+toolchain go1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.2
