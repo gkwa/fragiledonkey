@@ -1,8 +1,6 @@
 module github.com/gkwa/fragiledonkey
 
-go 1.24.0
-
-toolchain go1.25.1
+go 1.26.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.39.2
@@ -13,7 +11,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/taylormonacelli/goldbug v0.0.6
 	github.com/taylormonacelli/lemondrop v0.0.20
-	golang.org/x/sync v0.17.0
+	golang.org/x/sync v0.23.0
 )
 
 require (
