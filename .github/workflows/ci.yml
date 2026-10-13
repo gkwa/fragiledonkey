@@ -39,7 +39,7 @@ jobs:
           version: latest
           install-go: false
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
           args: release --snapshot --skip=publish --clean
       - name: Colored Output Test
